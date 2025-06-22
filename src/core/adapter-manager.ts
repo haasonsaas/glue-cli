@@ -1,4 +1,4 @@
-import { Adapter, AdapterConstructor } from '../types/adapter.js';
+import type { Adapter, AdapterConstructor } from '../types/adapter.js';
 import { SlackAdapter } from '../adapters/slack.js';
 import { GitHubAdapter } from '../adapters/github.js';
 import { GCPAdapter } from '../adapters/gcp.js';

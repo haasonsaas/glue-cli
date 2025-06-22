@@ -1,4 +1,4 @@
-import { Adapter, AdapterAction, AdapterOptions } from '../types/adapter.js';
+import type { Adapter, AdapterAction, AdapterOptions } from '../types/adapter.js';
 import { AuthManager } from '../core/auth-manager.js';
 import * as readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';

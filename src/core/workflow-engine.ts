@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import ora from 'ora';
 import chalk from 'chalk';
-import { 
+import type { 
   Workflow, 
   Step, 
   LocalStep, 

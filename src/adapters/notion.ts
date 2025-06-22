@@ -1,5 +1,5 @@
 import { BaseAdapter } from './base.js';
-import { AdapterOptions } from '../types/adapter.js';
+import type { AdapterOptions } from '../types/adapter.js';
 import chalk from 'chalk';
 
 export class NotionAdapter extends BaseAdapter {

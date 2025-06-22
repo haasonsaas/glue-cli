@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as yaml from 'js-yaml';
-import { GlueConfig, GlueConfigSchema } from '../types/workflow.js';
+import type { GlueConfig } from '../types/workflow.js';
+import { GlueConfigSchema } from '../types/workflow.js';
 
 export class WorkflowParser {
   async parseFile(filePath: string): Promise<GlueConfig> {

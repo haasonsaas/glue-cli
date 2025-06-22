@@ -1,0 +1,49 @@
+# Test workflows for Glue CLI
+
+# Simple test workflow
+test-simple:
+  when: test-simple
+  steps:
+    - name: "Echo hello"
+      run: "echo 'Hello from Glue!'"
+    
+    - name: "Show current directory"
+      run: "pwd"
+    
+    - name: "List files"
+      run: "ls -la"
+
+# Test with failure
+test-fail:
+  when: test-fail
+  steps:
+    - name: "This will succeed"
+      run: "echo 'Starting...'"
+    
+    - name: "This will fail"
+      run: "exit 1"
+    
+    - name: "This should not run"
+      run: "echo 'Should not see this'"
+
+# Test adapter workflow (mock)
+test-adapters:
+  when: test-adapters
+  steps:
+    - name: "Local preparation"
+      run: "echo 'Preparing deployment...'"
+    
+    - name: "Notify Slack"
+      adapter: slack
+      action: notify
+      options:
+        channel: "#test"
+        message: "Test notification from Glue"
+    
+    - name: "Create GitHub issue"
+      adapter: github
+      action: create_issue
+      options:
+        repo: "test/repo"
+        title: "Test issue from Glue"
+        body: "This is a test"

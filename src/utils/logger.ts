@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import winston from 'winston';
-import { StepResult } from '../types/workflow.js';
+import type { StepResult } from '../types/workflow.js';
 
 export interface ExecutionLog {
   timestamp: string;
