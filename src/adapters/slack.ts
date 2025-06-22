@@ -1,6 +1,7 @@
 import { BaseAdapter } from './base.js';
 import type { AdapterOptions } from '../types/adapter.js';
 import chalk from 'chalk';
+import axios from 'axios';
 
 export class SlackAdapter extends BaseAdapter {
   name = 'slack';
@@ -44,11 +45,32 @@ export class SlackAdapter extends BaseAdapter {
       throw new Error('Slack not authenticated. Run: glue auth slack');
     }
     
-    // In a real implementation, this would make an API call to Slack
-    console.log(chalk.gray(`[Slack] Sending to ${channel}: ${message}`));
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      const response = await axios.post(
+        'https://slack.com/api/chat.postMessage',
+        {
+          channel,
+          text: message,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (!response.data.ok) {
+        throw new Error(`Slack API error: ${response.data.error}`);
+      }
+      
+      console.log(chalk.gray(`[Slack] Message sent to ${channel}}`));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to send Slack message: ${error.message}`);
+      }
+      throw error;
+    }
   }
   
   private async uploadFile(options: AdapterOptions): Promise<void> {
@@ -68,13 +90,38 @@ export class SlackAdapter extends BaseAdapter {
       throw new Error('Slack not authenticated. Run: glue auth slack');
     }
     
-    // In a real implementation, this would upload the file to Slack
-    console.log(chalk.gray(`[Slack] Uploading ${file} to ${channel}`));
-    if (comment) {
-      console.log(chalk.gray(`[Slack] Comment: ${comment}`));
+    try {
+      const fs = await import('fs/promises');
+      const fileContent = await fs.readFile(file);
+      const fileName = file.split('/').pop() || 'file';
+      
+      const formData = new FormData();
+      formData.append('channels', channel);
+      formData.append('file', new Blob([fileContent]), fileName);
+      if (comment) {
+        formData.append('initial_comment', comment);
+      }
+      
+      const response = await axios.post(
+        'https://slack.com/api/files.upload',
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (!response.data.ok) {
+        throw new Error(`Slack API error: ${response.data.error}`);
+      }
+      
+      console.log(chalk.gray(`[Slack] File uploaded to ${channel}`));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to upload file to Slack: ${error.message}`);
+      }
+      throw error;
     }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }

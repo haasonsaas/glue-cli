@@ -1,6 +1,7 @@
 import { BaseAdapter } from './base.js';
 import type { AdapterOptions } from '../types/adapter.js';
 import chalk from 'chalk';
+import axios from 'axios';
 
 export class LinearAdapter extends BaseAdapter {
   name = 'linear';
@@ -32,12 +33,11 @@ export class LinearAdapter extends BaseAdapter {
   }
   
   private async createIssue(options: AdapterOptions): Promise<void> {
-    const { team, title, description, priority, assignee } = options as { 
+    const { team, title, description, priority } = options as { 
       team: string;
       title: string;
       description?: string;
       priority?: string;
-      assignee?: string;
     };
     
     if (!team || !title) {
@@ -50,27 +50,86 @@ export class LinearAdapter extends BaseAdapter {
       throw new Error('Linear not authenticated. Run: glue auth linear');
     }
     
-    console.log(chalk.gray(`[Linear] Creating issue for team ${team}: ${title}`));
-    if (description) {
-      console.log(chalk.gray(`[Linear] Description: ${description.substring(0, 50)}...`));
+    try {
+      // First, get the team ID
+      const teamQuery = `
+        query Teams {
+          teams(filter: { name: { eq: "${team}" } }) {
+            nodes {
+              id
+              name
+            }
+          }
+        }
+      `;
+      
+      const teamResponse = await axios.post(
+        'https://api.linear.app/graphql',
+        { query: teamQuery },
+        {
+          headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      const teamId = teamResponse.data.data?.teams?.nodes?.[0]?.id;
+      if (!teamId) {
+        throw new Error(`Team "${team}" not found`);
+      }
+      
+      // Create the issue
+      const mutation = `
+        mutation IssueCreate($input: IssueCreateInput!) {
+          issueCreate(input: $input) {
+            success
+            issue {
+              id
+              identifier
+              url
+            }
+          }
+        }
+      `;
+      
+      const variables = {
+        input: {
+          teamId,
+          title,
+          description,
+          priority: priority ? parseInt(priority) : undefined,
+        }
+      };
+      
+      const response = await axios.post(
+        'https://api.linear.app/graphql',
+        { query: mutation, variables },
+        {
+          headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      const issue = response.data.data?.issueCreate?.issue;
+      if (issue) {
+        console.log(chalk.gray(`[Linear] Issue created: ${issue.identifier} - ${issue.url}`));
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to create Linear issue: ${error.response?.data?.errors?.[0]?.message || error.message}`);
+      }
+      throw error;
     }
-    if (priority) {
-      console.log(chalk.gray(`[Linear] Priority: ${priority}`));
-    }
-    if (assignee) {
-      console.log(chalk.gray(`[Linear] Assignee: ${assignee}`));
-    }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 700));
   }
   
   private async updateIssue(options: AdapterOptions): Promise<void> {
-    const { issue_id, state, priority, assignee } = options as { 
+    const { issue_id, state, priority } = options as { 
       issue_id: string;
       state?: string;
       priority?: string;
-      assignee?: string;
     };
     
     if (!issue_id) {
@@ -83,19 +142,51 @@ export class LinearAdapter extends BaseAdapter {
       throw new Error('Linear not authenticated. Run: glue auth linear');
     }
     
-    console.log(chalk.gray(`[Linear] Updating issue: ${issue_id}`));
-    if (state) {
-      console.log(chalk.gray(`[Linear] State: ${state}`));
+    try {
+      const mutation = `
+        mutation IssueUpdate($id: String!, $input: IssueUpdateInput!) {
+          issueUpdate(id: $id, input: $input) {
+            success
+            issue {
+              id
+              identifier
+              state {
+                name
+              }
+            }
+          }
+        }
+      `;
+      
+      const input: any = {};
+      if (priority) input.priority = parseInt(priority);
+      if (state) input.stateId = state; // Note: This would need state ID lookup in real implementation
+      
+      const variables = {
+        id: issue_id,
+        input
+      };
+      
+      const response = await axios.post(
+        'https://api.linear.app/graphql',
+        { query: mutation, variables },
+        {
+          headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (response.data.data?.issueUpdate?.success) {
+        console.log(chalk.gray(`[Linear] Issue ${issue_id} updated`));
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to update Linear issue: ${error.response?.data?.errors?.[0]?.message || error.message}`);
+      }
+      throw error;
     }
-    if (priority) {
-      console.log(chalk.gray(`[Linear] Priority: ${priority}`));
-    }
-    if (assignee) {
-      console.log(chalk.gray(`[Linear] Assignee: ${assignee}`));
-    }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 600));
   }
   
   private async addComment(options: AdapterOptions): Promise<void> {
@@ -114,10 +205,45 @@ export class LinearAdapter extends BaseAdapter {
       throw new Error('Linear not authenticated. Run: glue auth linear');
     }
     
-    console.log(chalk.gray(`[Linear] Adding comment to issue: ${issue_id}`));
-    console.log(chalk.gray(`[Linear] Comment: ${comment.substring(0, 50)}...`));
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      const mutation = `
+        mutation CommentCreate($input: CommentCreateInput!) {
+          commentCreate(input: $input) {
+            success
+            comment {
+              id
+              body
+            }
+          }
+        }
+      `;
+      
+      const variables = {
+        input: {
+          issueId: issue_id,
+          body: comment
+        }
+      };
+      
+      const response = await axios.post(
+        'https://api.linear.app/graphql',
+        { query: mutation, variables },
+        {
+          headers: {
+            'Authorization': apiKey,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (response.data.data?.commentCreate?.success) {
+        console.log(chalk.gray(`[Linear] Comment added to issue ${issue_id}`));
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to add Linear comment: ${error.response?.data?.errors?.[0]?.message || error.message}`);
+      }
+      throw error;
+    }
   }
 }

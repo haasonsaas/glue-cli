@@ -1,6 +1,8 @@
 import { BaseAdapter } from './base.js';
 import type { AdapterOptions } from '../types/adapter.js';
 import chalk from 'chalk';
+import axios from 'axios';
+import * as fs from 'fs/promises';
 
 export class NotionAdapter extends BaseAdapter {
   name = 'notion';
@@ -49,14 +51,50 @@ export class NotionAdapter extends BaseAdapter {
       throw new Error('Notion not authenticated. Run: glue auth notion');
     }
     
-    console.log(chalk.gray(`[Notion] Creating page: ${title}`));
-    console.log(chalk.gray(`[Notion] Parent: ${parent_id}`));
-    if (content) {
-      console.log(chalk.gray(`[Notion] Content: ${content.substring(0, 50)}...`));
+    try {
+      const children = [];
+      if (content) {
+        children.push({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [{
+              type: 'text',
+              text: { content }
+            }]
+          }
+        });
+      }
+      
+      const response = await axios.post(
+        'https://api.notion.com/v1/pages',
+        {
+          parent: { page_id: parent_id },
+          properties: {
+            title: {
+              title: [{
+                text: { content: title }
+              }]
+            }
+          },
+          children
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      console.log(chalk.gray(`[Notion] Page created: ${response.data.url}`));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to create Notion page: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
     }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   
   private async appendToPage(options: AdapterOptions): Promise<void> {
@@ -76,15 +114,42 @@ export class NotionAdapter extends BaseAdapter {
       throw new Error('Notion not authenticated. Run: glue auth notion');
     }
     
-    console.log(chalk.gray(`[Notion] Appending to page: ${page_id}`));
-    if (content) {
-      console.log(chalk.gray(`[Notion] Content: ${content.substring(0, 50)}...`));
-    } else if (content_file) {
-      console.log(chalk.gray(`[Notion] Content from file: ${content_file}`));
+    try {
+      let textContent = content;
+      if (content_file) {
+        textContent = await fs.readFile(content_file, 'utf-8');
+      }
+      
+      await axios.patch(
+        `https://api.notion.com/v1/blocks/${page_id}/children`,
+        {
+          children: [{
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+              rich_text: [{
+                type: 'text',
+                text: { content: textContent }
+              }]
+            }
+          }]
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      console.log(chalk.gray(`[Notion] Content appended to page`));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to append to Notion page: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
     }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
   }
   
   private async updateDatabase(options: AdapterOptions): Promise<void> {
@@ -103,10 +168,28 @@ export class NotionAdapter extends BaseAdapter {
       throw new Error('Notion not authenticated. Run: glue auth notion');
     }
     
-    console.log(chalk.gray(`[Notion] Updating database: ${database_id}`));
-    console.log(chalk.gray(`[Notion] Properties: ${JSON.stringify(properties).substring(0, 50)}...`));
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 900));
+    try {
+      await axios.post(
+        'https://api.notion.com/v1/pages',
+        {
+          parent: { database_id },
+          properties
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      console.log(chalk.gray(`[Notion] Database entry created`));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to update Notion database: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
+    }
   }
 }

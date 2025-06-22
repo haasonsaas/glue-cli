@@ -1,6 +1,7 @@
 import { BaseAdapter } from './base.js';
 import type { AdapterOptions } from '../types/adapter.js';
 import chalk from 'chalk';
+import axios from 'axios';
 
 export class GitHubAdapter extends BaseAdapter {
   name = 'github';
@@ -50,16 +51,34 @@ export class GitHubAdapter extends BaseAdapter {
       throw new Error('GitHub not authenticated. Run: glue auth github');
     }
     
-    console.log(chalk.gray(`[GitHub] Creating issue in ${repo}: ${title}`));
-    if (body) {
-      console.log(chalk.gray(`[GitHub] Body: ${body.substring(0, 50)}...`));
+    try {
+      const [owner, repoName] = repo.split('/');
+      if (!owner || !repoName) {
+        throw new Error('Repository must be in format "owner/repo"');
+      }
+      
+      const response = await axios.post(
+        `https://api.github.com/repos/${owner}/${repoName}/issues`,
+        {
+          title,
+          body: body || '',
+          labels: labels || [],
+        },
+        {
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+      
+      console.log(chalk.gray(`[GitHub] Issue created: ${response.data.html_url}`));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to create GitHub issue: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
     }
-    if (labels) {
-      console.log(chalk.gray(`[GitHub] Labels: ${labels.join(', ')}`));
-    }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
   }
   
   private async updatePullRequest(options: AdapterOptions): Promise<void> {
@@ -80,16 +99,34 @@ export class GitHubAdapter extends BaseAdapter {
       throw new Error('GitHub not authenticated. Run: glue auth github');
     }
     
-    console.log(chalk.gray(`[GitHub] Updating PR #${pr_number} in ${repo}`));
-    if (state) {
-      console.log(chalk.gray(`[GitHub] State: ${state}`));
+    try {
+      const [owner, repoName] = repo.split('/');
+      if (!owner || !repoName) {
+        throw new Error('Repository must be in format "owner/repo"');
+      }
+      
+      const updateData: any = {};
+      if (state) updateData.state = state;
+      if (body) updateData.body = body;
+      
+      await axios.patch(
+        `https://api.github.com/repos/${owner}/${repoName}/pulls/${pr_number}`,
+        updateData,
+        {
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+      
+      console.log(chalk.gray(`[GitHub] PR #${pr_number} updated`));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to update GitHub PR: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
     }
-    if (body) {
-      console.log(chalk.gray(`[GitHub] Body: ${body.substring(0, 50)}...`));
-    }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 600));
   }
   
   private async addComment(options: AdapterOptions): Promise<void> {
@@ -109,10 +146,29 @@ export class GitHubAdapter extends BaseAdapter {
       throw new Error('GitHub not authenticated. Run: glue auth github');
     }
     
-    console.log(chalk.gray(`[GitHub] Adding comment to #${issue_number} in ${repo}`));
-    console.log(chalk.gray(`[GitHub] Comment: ${body.substring(0, 50)}...`));
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      const [owner, repoName] = repo.split('/');
+      if (!owner || !repoName) {
+        throw new Error('Repository must be in format "owner/repo"');
+      }
+      
+      await axios.post(
+        `https://api.github.com/repos/${owner}/${repoName}/issues/${issue_number}/comments`,
+        { body },
+        {
+          headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+          },
+        }
+      );
+      
+      console.log(chalk.gray(`[GitHub] Comment added to #${issue_number}`));
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Failed to add GitHub comment: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
+    }
   }
 }

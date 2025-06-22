@@ -1,6 +1,11 @@
 import { BaseAdapter } from './base.js';
 import type { AdapterOptions } from '../types/adapter.js';
 import chalk from 'chalk';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs/promises';
+
+const execAsync = promisify(exec);
 
 export class GCPAdapter extends BaseAdapter {
   name = 'gcp';
@@ -58,18 +63,27 @@ export class GCPAdapter extends BaseAdapter {
       throw new Error('GCP not authenticated. Run: glue auth gcp');
     }
     
-    console.log(chalk.gray(`[GCP BigQuery] Project: ${projectId}`));
-    if (dataset) {
-      console.log(chalk.gray(`[GCP BigQuery] Dataset: ${dataset}`));
+    try {
+      let queryText = query;
+      if (query_file) {
+        queryText = await fs.readFile(query_file, 'utf-8');
+      }
+      
+      const datasetFlag = dataset ? `--dataset_id=${dataset}` : '';
+      const command = `GOOGLE_APPLICATION_CREDENTIALS="${keyfile}" bq query --project_id="${projectId}" ${datasetFlag} --format=json "${queryText}"`;
+      
+      console.log(chalk.gray(`[GCP BigQuery] Running query...`));
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr) {
+        console.warn(chalk.yellow(`[GCP BigQuery] Warning: ${stderr}`));
+      }
+      
+      const results = JSON.parse(stdout);
+      console.log(chalk.gray(`[GCP BigQuery] Query completed: ${results.length} rows returned`));
+    } catch (error) {
+      throw new Error(`Failed to execute BigQuery: ${error instanceof Error ? error.message : String(error)}`);
     }
-    if (query) {
-      console.log(chalk.gray(`[GCP BigQuery] Query: ${query.substring(0, 50)}...`));
-    } else if (query_file) {
-      console.log(chalk.gray(`[GCP BigQuery] Query file: ${query_file}`));
-    }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
   }
   
   private async storageUpload(options: AdapterOptions): Promise<void> {
@@ -90,10 +104,17 @@ export class GCPAdapter extends BaseAdapter {
       throw new Error('GCP not authenticated. Run: glue auth gcp');
     }
     
-    console.log(chalk.gray(`[GCP Storage] Uploading ${source} to gs://${bucket}/${destination || source}`));
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const dest = destination || source.split('/').pop();
+      const command = `GOOGLE_APPLICATION_CREDENTIALS="${keyfile}" gsutil -q cp "${source}" "gs://${bucket}/${dest}"`;
+      
+      console.log(chalk.gray(`[GCP Storage] Uploading ${source}...`));
+      await execAsync(command);
+      
+      console.log(chalk.gray(`[GCP Storage] Uploaded to gs://${bucket}/${dest}`));
+    } catch (error) {
+      throw new Error(`Failed to upload to GCS: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   
   private async invokeFunction(options: AdapterOptions): Promise<void> {
@@ -114,15 +135,24 @@ export class GCPAdapter extends BaseAdapter {
       throw new Error('GCP not authenticated. Run: glue auth gcp');
     }
     
-    console.log(chalk.gray(`[GCP Functions] Invoking ${name}`));
-    if (region) {
-      console.log(chalk.gray(`[GCP Functions] Region: ${region}`));
+    try {
+      const regionFlag = region ? `--region=${region}` : '--region=us-central1';
+      const dataFlag = data ? `--data='${JSON.stringify(data)}'` : '';
+      const command = `GOOGLE_APPLICATION_CREDENTIALS="${keyfile}" gcloud functions call ${name} --project="${projectId}" ${regionFlag} ${dataFlag}`;
+      
+      console.log(chalk.gray(`[GCP Functions] Invoking ${name}...`));
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr) {
+        console.warn(chalk.yellow(`[GCP Functions] Warning: ${stderr}`));
+      }
+      
+      console.log(chalk.gray(`[GCP Functions] Function executed successfully`));
+      if (stdout) {
+        console.log(chalk.gray(`[GCP Functions] Response: ${stdout.substring(0, 100)}...`));
+      }
+    } catch (error) {
+      throw new Error(`Failed to invoke Cloud Function: ${error instanceof Error ? error.message : String(error)}`);
     }
-    if (data) {
-      console.log(chalk.gray(`[GCP Functions] Data: ${JSON.stringify(data).substring(0, 50)}...`));
-    }
-    
-    // Simulated API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
   }
 }
