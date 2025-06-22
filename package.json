@@ -1,0 +1,68 @@
+{
+  "name": "glue-cli",
+  "version": "0.1.0",
+  "description": "The Zapier for your CLI - Create powerful, declarative workflows that connect your local environment with cloud services",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "glue": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "cli",
+    "automation",
+    "workflow",
+    "zapier",
+    "devops",
+    "integration"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@oclif/core": "^3.16.0",
+    "@oclif/plugin-help": "^6.0.0",
+    "chalk": "^5.3.0",
+    "js-yaml": "^4.1.0",
+    "keytar": "^7.9.0",
+    "ora": "^8.0.1",
+    "winston": "^3.11.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/keytar": "^4.4.2",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "prettier": "^3.1.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "oclif": {
+    "bin": "glue",
+    "dirname": "glue",
+    "commands": "./dist/commands",
+    "plugins": [
+      "@oclif/plugin-help"
+    ],
+    "topicSeparator": " "
+  }
+}
